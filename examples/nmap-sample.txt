@@ -1,0 +1,9 @@
+# Nmap 7.94 scan initiated Tue May  5 12:00:00 2026 as: nmap -sC -sV -oN scans/nmap.txt 10.10.10.10
+Nmap scan report for 10.10.10.10
+Host is up (0.050s latency).
+Not shown: 997 closed tcp ports (reset)
+PORT    STATE SERVICE     VERSION
+22/tcp  open  ssh         OpenSSH 8.9p1 Ubuntu
+80/tcp  open  http        Apache httpd 2.4.52
+445/tcp open  microsoft-ds Samba smbd 4.15.13
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
