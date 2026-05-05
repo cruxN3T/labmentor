@@ -29,6 +29,51 @@ def recommend_next_steps(services: list[Service], target: str) -> list[dict[str,
             }
         )
 
+    if has_nfs(names, ports):
+        recommendations.append(
+            {
+                "title": "Enumerate NFS exports",
+                "why": "NFS can expose mounted directories, backups, home folders, web roots, or files that can be mounted locally for deeper review.",
+                "commands": [
+                    f"showmount -e {target}",
+                    f"nmap --script nfs-showmount,nfs-ls,nfs-statfs -p111,2049 {target}",
+                    f"mkdir -p mnt/nfs && sudo mount -t nfs {target}:/<export> mnt/nfs -o nolock",
+                ],
+                "look_for": [
+                    "world-readable exports",
+                    "home directories",
+                    "web application files",
+                    "backup archives",
+                    "SSH keys",
+                    "UID/GID permission issues",
+                    "files writable after mounting",
+                ],
+            }
+        )
+
+    if has_snmp(names, ports):
+        recommendations.append(
+            {
+                "title": "Enumerate SNMP information",
+                "why": "SNMP can leak usernames, running processes, network interfaces, installed software, hostnames, and sometimes sensitive command arguments.",
+                "commands": [
+                    f"snmpwalk -v2c -c public {target}",
+                    f"onesixtyone -c /usr/share/seclists/Discovery/SNMP/snmp.txt {target}",
+                    f"snmpwalk -v2c -c public {target} 1.3.6.1.2.1.25.4.2.1.2",
+                    f"snmpwalk -v2c -c public {target} 1.3.6.1.4.1.77.1.2.25",
+                ],
+                "look_for": [
+                    "valid community strings",
+                    "local usernames",
+                    "running processes",
+                    "software versions",
+                    "network interfaces",
+                    "mounted paths",
+                    "credentials in process arguments",
+                ],
+            }
+        )
+
     if has_web(names, ports):
         recommendations.append(
             {
@@ -107,6 +152,14 @@ def recommend_next_steps(services: list[Service], target: str) -> list[dict[str,
 
 def has_smb(names: set[str], ports: set[int]) -> bool:
     return bool({"microsoft-ds", "netbios-ssn", "smb"} & names) or bool({139, 445} & ports)
+
+
+def has_nfs(names: set[str], ports: set[int]) -> bool:
+    return bool({"nfs", "mountd", "rpcbind"} & names) or bool({111, 2049} & ports)
+
+
+def has_snmp(names: set[str], ports: set[int]) -> bool:
+    return "snmp" in names or 161 in ports
 
 
 def has_web(names: set[str], ports: set[int]) -> bool:
