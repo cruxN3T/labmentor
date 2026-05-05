@@ -39,6 +39,25 @@ PORT   STATE SERVICE VERSION
         assert "80/tcp" in result.output
 
 
+def test_workspace_command_shows_paths(tmp_path):
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(app, ["workspace"])
+        assert result.exit_code == 0
+        assert "Workspace" in result.output
+        assert "missing" in result.output
+
+        result = runner.invoke(
+            app,
+            ["start", "--platform", "htb", "--name", "sample", "--target", "10.10.10.10"],
+        )
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["workspace"])
+        assert result.exit_code == 0
+        assert "State file" in result.output
+        assert "exists" in result.output
+
+
 def test_reset_requires_confirmation_and_deletes_workspace(tmp_path):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         result = runner.invoke(
