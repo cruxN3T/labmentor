@@ -39,6 +39,37 @@ PORT   STATE SERVICE VERSION
         assert "80/tcp" in result.output
 
 
+def test_next_warns_about_placeholders(tmp_path):
+    nmap_file = tmp_path / "ad-nmap.txt"
+    nmap_file.write_text(
+        """
+PORT     STATE SERVICE      VERSION
+88/tcp   open  kerberos-sec Microsoft Windows Kerberos
+389/tcp  open  ldap         Microsoft Windows Active Directory LDAP
+445/tcp  open  microsoft-ds Windows Server SMB
+5985/tcp open  wsman        Microsoft HTTPAPI httpd
+""",
+        encoding="utf-8",
+    )
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(
+            app,
+            ["start", "--platform", "htb", "--name", "ad", "--target", "10.10.10.50"],
+        )
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["import-nmap", str(nmap_file)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["next"])
+        assert result.exit_code == 0
+        assert "Replace before running" in result.output
+        assert "LAB.LOCAL" in result.output
+        assert "USER" in result.output
+        assert "PASS" in result.output
+
+
 def test_workspace_command_shows_paths(tmp_path):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         result = runner.invoke(app, ["workspace"])
