@@ -17,6 +17,7 @@ It is designed for authorized training environments where you want to understand
 - Imports walkthrough text or Markdown
 - Compares your notes against a walkthrough
 - Extracts methodology lessons from what you missed
+- Provides methodology checklists for web, Linux privilege escalation, Windows privilege escalation, and Active Directory labs
 
 ## What LabMentor does not do
 
@@ -88,6 +89,15 @@ Add a lead:
 labmentor add-lead "Anonymous SMB access" --evidence "smbclient -L worked with -N" --next-step "List and download readable shares"
 ```
 
+Use methodology checklists:
+
+```bash
+labmentor checklist --type web
+labmentor checklist --type linux-privesc
+labmentor checklist --type windows-privesc
+labmentor checklist --type ad
+```
+
 Import a walkthrough after you get stuck:
 
 ```bash
@@ -128,9 +138,27 @@ Look for:
 - credentials
 ```
 
+## Available commands
+
+```text
+labmentor start
+labmentor status
+labmentor workspace
+labmentor services
+labmentor reset
+labmentor import-nmap
+labmentor next
+labmentor notes
+labmentor add-lead
+labmentor import-walkthrough
+labmentor compare
+labmentor lessons
+labmentor checklist
+```
+
 ## Project status
 
-LabMentor is in early development. The first public version focuses on simple local workflows, Markdown notes, service-based next-step recommendations, and walkthrough comparison.
+LabMentor is in early development. The first public version focuses on simple local workflows, Markdown notes, service-based next-step recommendations, methodology checklists, and walkthrough comparison.
 
 ## Safety and ethics
 
