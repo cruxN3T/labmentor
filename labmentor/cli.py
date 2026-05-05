@@ -12,12 +12,22 @@ from rich.table import Table
 from labmentor.checklists import get_checklist, valid_checklists
 from labmentor.models import LabState
 from labmentor.nmap_parser import parse_nmap_file
-from labmentor.notes import write_notes
+from labmentor.notes import build_notes, write_notes
+from labmentor.obsidian import (
+    get_vault_path,
+    set_vault_path,
+    vault_comparison_path,
+    vault_lessons_path,
+    vault_note_path,
+    write_obsidian_file,
+)
 from labmentor.recommendations import recommend_next_steps
 from labmentor.storage import load_state, save_state, state_path, workspace_root
 from labmentor.walkthroughs import compare_notes_to_walkthrough, extract_lessons, import_walkthrough
 
 app = typer.Typer(help="LabMentor: learn the path, not just the answer.")
+vault_app = typer.Typer(help="Configure Obsidian vault export support.")
+app.add_typer(vault_app, name="vault")
 console = Console()
 
 PLACEHOLDER_HELP = {
@@ -45,6 +55,30 @@ def start(
     console.print(Panel.fit(f"Started LabMentor workspace for [bold]{name}[/bold] ({target})"))
 
 
+@vault_app.command("set")
+def vault_set(path: Annotated[Path, typer.Argument(help="Path to your Obsidian vault or LabMentor folder inside it.")]) -> None:
+    """Set the Obsidian vault path for LabMentor exports."""
+    resolved = set_vault_path(path)
+    console.print(f"Obsidian vault path set to [bold]{resolved}[/bold]")
+
+
+@vault_app.command("show")
+def vault_show() -> None:
+    """Show the configured Obsidian vault path."""
+    try:
+        vault_path = get_vault_path()
+    except FileNotFoundError as error:
+        console.print(str(error))
+        raise typer.Exit(code=1) from error
+
+    table = Table(title="LabMentor Obsidian Vault")
+    table.add_column("Item", style="bold")
+    table.add_column("Value")
+    table.add_row("Vault path", str(vault_path))
+    table.add_row("Status", "exists" if vault_path.exists() else "missing")
+    console.print(table)
+
+
 @app.command()
 def status() -> None:
     """Show the current LabMentor workspace status."""
@@ -62,10 +96,7 @@ def status() -> None:
     table.add_row("Services imported", str(len(state.services)))
     table.add_row("Leads", str(len(state.leads)))
     table.add_row("Notes", str(state.notes_path) if state.notes_path else "Not generated")
-    table.add_row(
-        "Walkthrough",
-        str(state.walkthrough_path) if state.walkthrough_path else "Not imported",
-    )
+    table.add_row("Walkthrough", str(state.walkthrough_path) if state.walkthrough_path else "Not imported")
     table.add_row("Next recommended path", str(top_recommendation))
     console.print(table)
 
@@ -85,16 +116,8 @@ def workspace() -> None:
 
     if state_file.exists():
         state = load_state()
-        table.add_row(
-            "Notes",
-            str(state.notes_path) if state.notes_path else "not configured",
-            "exists" if state.notes_path and state.notes_path.exists() else "missing/not generated",
-        )
-        table.add_row(
-            "Walkthrough",
-            str(state.walkthrough_path) if state.walkthrough_path else "not imported",
-            "exists" if state.walkthrough_path and state.walkthrough_path.exists() else "missing/not imported",
-        )
+        table.add_row("Notes", str(state.notes_path) if state.notes_path else "not configured", "exists" if state.notes_path and state.notes_path.exists() else "missing/not generated")
+        table.add_row("Walkthrough", str(state.walkthrough_path) if state.walkthrough_path else "not imported", "exists" if state.walkthrough_path and state.walkthrough_path.exists() else "missing/not imported")
 
     console.print(table)
 
@@ -113,25 +136,13 @@ def services() -> None:
     table.add_column("Service")
     table.add_column("Details")
     for service in state.services:
-        table.add_row(
-            f"{service.port}/{service.protocol}",
-            service.state,
-            service.name,
-            f"{service.product} {service.version}".strip(),
-        )
+        table.add_row(f"{service.port}/{service.protocol}", service.state, service.name, f"{service.product} {service.version}".strip())
     console.print(table)
 
 
 @app.command()
 def checklist(
-    type: Annotated[
-        str,
-        typer.Option(
-            "--type",
-            "-t",
-            help="Checklist type. Valid values: web, linux-privesc, windows-privesc, ad.",
-        ),
-    ] = "web",
+    type: Annotated[str, typer.Option("--type", "-t", help="Checklist type. Valid values: web, linux-privesc, windows-privesc, ad.")] = "web",
 ) -> None:
     """Show a methodology checklist."""
     try:
@@ -150,9 +161,7 @@ def checklist(
 
 
 @app.command()
-def reset(
-    yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm deletion without prompting.")] = False,
-) -> None:
+def reset(yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm deletion without prompting.")] = False) -> None:
     """Delete the local .labmentor workspace for the current directory."""
     workspace_path = workspace_root()
     if not workspace_path.exists():
@@ -160,10 +169,7 @@ def reset(
         raise typer.Exit(code=0)
 
     if not yes:
-        console.print(
-            "This will delete the local .labmentor workspace for this directory. "
-            "Run `labmentor reset --yes` to confirm."
-        )
+        console.print("This will delete the local .labmentor workspace for this directory. Run `labmentor reset --yes` to confirm.")
         raise typer.Exit(code=1)
 
     shutil.rmtree(workspace_path)
@@ -207,10 +213,16 @@ def next() -> None:  # noqa: A001 - CLI command name is intentional.
 
 
 @app.command()
-def notes(output: Annotated[Path, typer.Option(help="Output notes path.")] = Path("notes.md")) -> None:
+def notes(
+    output: Annotated[Path, typer.Option(help="Output notes path.")] = Path("notes.md"),
+    obsidian: Annotated[bool, typer.Option("--obsidian", help="Write notes to the configured Obsidian vault.")] = False,
+) -> None:
     """Generate Markdown lab notes."""
     state = load_state()
-    notes_path = write_notes(state, output)
+    if obsidian:
+        notes_path = write_obsidian_file(vault_note_path(state), build_notes(state))
+    else:
+        notes_path = write_notes(state, output)
     state.notes_path = notes_path
     save_state(state)
     console.print(f"Wrote notes to [bold]{notes_path}[/bold]")
@@ -225,14 +237,7 @@ def add_lead(
 ) -> None:
     """Add a lead to the current lab state."""
     state = load_state()
-    state.leads.append(
-        {
-            "title": title,
-            "evidence": evidence,
-            "next_step": next_step,
-            "status": status,
-        }
-    )
+    state.leads.append({"title": title, "evidence": evidence, "next_step": next_step, "status": status})
     save_state(state)
     console.print(f"Added lead: [bold]{title}[/bold]")
 
@@ -249,21 +254,31 @@ def import_walkthrough_command(path: Annotated[Path, typer.Argument(help="Path t
 
 
 @app.command()
-def compare(output: Annotated[Path, typer.Option(help="Comparison output path.")] = Path("walkthrough-comparison.md")) -> None:
+def compare(
+    output: Annotated[Path, typer.Option(help="Comparison output path.")] = Path("walkthrough-comparison.md"),
+    obsidian: Annotated[bool, typer.Option("--obsidian", help="Write comparison to the configured Obsidian vault.")] = False,
+) -> None:
     """Compare your notes against an imported walkthrough."""
     state = load_state()
     comparison = compare_notes_to_walkthrough(state)
-    output.write_text(comparison, encoding="utf-8")
-    console.print(f"Wrote walkthrough comparison to [bold]{output}[/bold]")
+    output_path = write_obsidian_file(vault_comparison_path(state), comparison) if obsidian else output
+    if not obsidian:
+        output_path.write_text(comparison, encoding="utf-8")
+    console.print(f"Wrote walkthrough comparison to [bold]{output_path}[/bold]")
 
 
 @app.command()
-def lessons(output: Annotated[Path, typer.Option(help="Lessons output path.")] = Path("lessons-learned.md")) -> None:
+def lessons(
+    output: Annotated[Path, typer.Option(help="Lessons output path.")] = Path("lessons-learned.md"),
+    obsidian: Annotated[bool, typer.Option("--obsidian", help="Write lessons to the configured Obsidian vault.")] = False,
+) -> None:
     """Extract methodology lessons from the walkthrough comparison."""
     state = load_state()
     lesson_text = extract_lessons(state)
-    output.write_text(lesson_text, encoding="utf-8")
-    console.print(f"Wrote lessons learned to [bold]{output}[/bold]")
+    output_path = write_obsidian_file(vault_lessons_path(state), lesson_text) if obsidian else output
+    if not obsidian:
+        output_path.write_text(lesson_text, encoding="utf-8")
+    console.print(f"Wrote lessons learned to [bold]{output_path}[/bold]")
 
 
 def detect_placeholder_notes(commands: list[str]) -> list[str]:
