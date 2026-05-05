@@ -13,7 +13,7 @@ from labmentor.models import LabState
 from labmentor.nmap_parser import parse_nmap_file
 from labmentor.notes import write_notes
 from labmentor.recommendations import recommend_next_steps
-from labmentor.storage import load_state, save_state, workspace_root
+from labmentor.storage import load_state, save_state, state_path, workspace_root
 from labmentor.walkthroughs import compare_notes_to_walkthrough, extract_lessons, import_walkthrough
 
 app = typer.Typer(help="LabMentor: learn the path, not just the answer.")
@@ -60,6 +60,35 @@ def status() -> None:
 
 
 @app.command()
+def workspace() -> None:
+    """Show local LabMentor workspace paths and file status."""
+    root = workspace_root()
+    state_file = state_path()
+
+    table = Table(title="LabMentor Workspace")
+    table.add_column("Item", style="bold")
+    table.add_column("Path")
+    table.add_column("Status")
+    table.add_row("Workspace", str(root), "exists" if root.exists() else "missing")
+    table.add_row("State file", str(state_file), "exists" if state_file.exists() else "missing")
+
+    if state_file.exists():
+        state = load_state()
+        table.add_row(
+            "Notes",
+            str(state.notes_path) if state.notes_path else "not configured",
+            "exists" if state.notes_path and state.notes_path.exists() else "missing/not generated",
+        )
+        table.add_row(
+            "Walkthrough",
+            str(state.walkthrough_path) if state.walkthrough_path else "not imported",
+            "exists" if state.walkthrough_path and state.walkthrough_path.exists() else "missing/not imported",
+        )
+
+    console.print(table)
+
+
+@app.command()
 def services() -> None:
     """List imported services for the current lab."""
     state = load_state()
@@ -87,8 +116,8 @@ def reset(
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm deletion without prompting.")] = False,
 ) -> None:
     """Delete the local .labmentor workspace for the current directory."""
-    workspace = workspace_root()
-    if not workspace.exists():
+    workspace_path = workspace_root()
+    if not workspace_path.exists():
         console.print("No .labmentor workspace exists in this directory.")
         raise typer.Exit(code=0)
 
@@ -99,8 +128,8 @@ def reset(
         )
         raise typer.Exit(code=1)
 
-    shutil.rmtree(workspace)
-    console.print(f"Deleted workspace: [bold]{workspace}[/bold]")
+    shutil.rmtree(workspace_path)
+    console.print(f"Deleted workspace: [bold]{workspace_path}[/bold]")
 
 
 @app.command("import-nmap")
