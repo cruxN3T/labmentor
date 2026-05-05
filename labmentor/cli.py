@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from typing import Annotated
 
@@ -79,6 +80,27 @@ def services() -> None:
             f"{service.product} {service.version}".strip(),
         )
     console.print(table)
+
+
+@app.command()
+def reset(
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm deletion without prompting.")] = False,
+) -> None:
+    """Delete the local .labmentor workspace for the current directory."""
+    workspace = workspace_root()
+    if not workspace.exists():
+        console.print("No .labmentor workspace exists in this directory.")
+        raise typer.Exit(code=0)
+
+    if not yes:
+        console.print(
+            "This will delete the local .labmentor workspace for this directory. "
+            "Run `labmentor reset --yes` to confirm."
+        )
+        raise typer.Exit(code=1)
+
+    shutil.rmtree(workspace)
+    console.print(f"Deleted workspace: [bold]{workspace}[/bold]")
 
 
 @app.command("import-nmap")
