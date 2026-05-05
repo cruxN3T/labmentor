@@ -10,7 +10,7 @@ from labmentor.recommendations import recommend_next_steps
 def build_notes(state: LabState) -> str:
     recommendations = recommend_next_steps(state.services, state.target)
     service_rows = "\n".join(
-        f"| {service.port}/{service.protocol} | {service.name} | {service.product} {service.version}.strip() | |"
+        f"| {service.port}/{service.protocol} | {service.name} | {format_service_detail(service.product, service.version)} | |"
         for service in state.services
     )
     if not service_rows:
@@ -149,6 +149,10 @@ Use this after importing a walkthrough and running `labmentor compare`.
 
 - 
 """
+
+
+def format_service_detail(product: str, version: str) -> str:
+    return f"{product} {version}".strip()
 
 
 def write_notes(state: LabState, path: Path) -> Path:
