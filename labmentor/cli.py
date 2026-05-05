@@ -33,6 +33,54 @@ def start(
     console.print(Panel.fit(f"Started LabMentor workspace for [bold]{name}[/bold] ({target})"))
 
 
+@app.command()
+def status() -> None:
+    """Show the current LabMentor workspace status."""
+    state = load_state()
+    recommendations = recommend_next_steps(state.services, state.target)
+    top_recommendation = recommendations[0]["title"] if recommendations else "No recommendation available"
+
+    table = Table(title="LabMentor Status")
+    table.add_column("Field", style="bold")
+    table.add_column("Value")
+    table.add_row("Lab", state.name)
+    table.add_row("Platform", state.platform)
+    table.add_row("Target", state.target)
+    table.add_row("Workspace", str(state.workspace))
+    table.add_row("Services imported", str(len(state.services)))
+    table.add_row("Leads", str(len(state.leads)))
+    table.add_row("Notes", str(state.notes_path) if state.notes_path else "Not generated")
+    table.add_row(
+        "Walkthrough",
+        str(state.walkthrough_path) if state.walkthrough_path else "Not imported",
+    )
+    table.add_row("Next recommended path", str(top_recommendation))
+    console.print(table)
+
+
+@app.command()
+def services() -> None:
+    """List imported services for the current lab."""
+    state = load_state()
+    if not state.services:
+        console.print("No services imported yet. Run `labmentor import-nmap <file>` first.")
+        raise typer.Exit(code=0)
+
+    table = Table(title="Imported Services")
+    table.add_column("Port")
+    table.add_column("State")
+    table.add_column("Service")
+    table.add_column("Details")
+    for service in state.services:
+        table.add_row(
+            f"{service.port}/{service.protocol}",
+            service.state,
+            service.name,
+            f"{service.product} {service.version}".strip(),
+        )
+    console.print(table)
+
+
 @app.command("import-nmap")
 def import_nmap(path: Annotated[Path, typer.Argument(help="Path to nmap output text file.")]) -> None:
     """Import nmap output and update the current lab state."""
