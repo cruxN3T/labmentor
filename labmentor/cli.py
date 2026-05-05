@@ -19,6 +19,16 @@ from labmentor.walkthroughs import compare_notes_to_walkthrough, extract_lessons
 app = typer.Typer(help="LabMentor: learn the path, not just the answer.")
 console = Console()
 
+PLACEHOLDER_HELP = {
+    "LAB.LOCAL": "replace with the real domain name, such as example.local",
+    "users.txt": "replace with the path to an existing username wordlist",
+    "USER": "replace with a valid username after credentials are found",
+    "PASS": "replace with a valid password after credentials are found",
+    "<user>": "replace with a valid username after credentials are found",
+    "<export>": "replace with the NFS export path from showmount output",
+    "<ports>": "replace with the discovered comma-separated ports",
+}
+
 
 @app.command()
 def start(
@@ -159,6 +169,12 @@ def next() -> None:  # noqa: A001 - CLI command name is intentional.
         body.extend(f"  {command}" for command in rec["commands"])
         body.extend(["", "[bold]Look for:[/bold]"])
         body.extend(f"  - {item}" for item in rec["look_for"])
+
+        placeholder_notes = detect_placeholder_notes(rec["commands"])
+        if placeholder_notes:
+            body.extend(["", "[bold yellow]Replace before running:[/bold yellow]"])
+            body.extend(f"  - {note}" for note in placeholder_notes)
+
         console.print(Panel("\n".join(body), title=str(rec["title"]), expand=False))
 
 
@@ -220,6 +236,15 @@ def lessons(output: Annotated[Path, typer.Option(help="Lessons output path.")] =
     lesson_text = extract_lessons(state)
     output.write_text(lesson_text, encoding="utf-8")
     console.print(f"Wrote lessons learned to [bold]{output}[/bold]")
+
+
+def detect_placeholder_notes(commands: list[str]) -> list[str]:
+    notes: list[str] = []
+    joined = "\n".join(commands)
+    for placeholder, guidance in PLACEHOLDER_HELP.items():
+        if placeholder in joined:
+            notes.append(f"{placeholder}: {guidance}")
+    return notes
 
 
 if __name__ == "__main__":
