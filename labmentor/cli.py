@@ -322,17 +322,13 @@ def lessons(
 
 
 def auto_update_obsidian(state: LabState) -> None:
-    if state.notes_path and is_inside_vault(state.notes_path):
-        create_engagement_workspace(state)
-        write_obsidian_file(vault_note_path(state), build_notes(state))
-
-
-def is_inside_vault(path: Path) -> bool:
     try:
-        path.resolve().relative_to(get_vault_path().resolve())
-        return True
-    except (FileNotFoundError, ValueError):
-        return False
+        create_engagement_workspace(state)
+        notes_path = write_obsidian_file(vault_note_path(state), build_notes(state))
+    except FileNotFoundError:
+        return
+    state.notes_path = notes_path
+    save_state(state)
 
 
 def detect_placeholder_notes(commands: list[str]) -> list[str]:
