@@ -17,9 +17,12 @@ LabMentor is an early-stage pentest lab training companion. The goal is to help 
 
 ## v0.2 - Better lab workflow
 
-- [ ] Add `labmentor status`
-- [ ] Add `labmentor services`
-- [ ] Add `labmentor reset` with confirmation
+- [x] Add `labmentor status`
+- [x] Add `labmentor services`
+- [x] Add `labmentor reset` with confirmation
+- [x] Add `labmentor workspace`
+- [x] Add placeholder warnings for commands that need lab-specific values
+- [x] Add methodology checklists for web, Linux privilege escalation, Windows privilege escalation, and Active Directory
 - [ ] Add workspace profiles per lab instead of one `.labmentor` state per directory
 - [ ] Add support for importing Grepable Nmap and XML Nmap output
 - [ ] Improve notes update behavior so existing notes are not overwritten accidentally
@@ -27,11 +30,13 @@ LabMentor is an early-stage pentest lab training companion. The goal is to help 
 
 ## v0.3 - More methodology coverage
 
-- [ ] Add service modules for FTP, SMTP, SNMP, LDAP, Kerberos, NFS, RPC, WinRM, MSSQL, MySQL, PostgreSQL, and Redis
-- [ ] Add Linux privilege escalation checklist generator
-- [ ] Add Windows privilege escalation checklist generator
-- [ ] Add Active Directory lab checklist generator
-- [ ] Add web app checklist generator
+- [x] Add service modules for SNMP and NFS
+- [x] Add Windows/Active Directory service guidance for LDAP, Kerberos, SMB, and WinRM
+- [ ] Add service modules for SMTP, RPC, MSSQL, MySQL, PostgreSQL, Redis, and RDP
+- [ ] Expand Linux privilege escalation checklist generator
+- [ ] Expand Windows privilege escalation checklist generator
+- [ ] Expand Active Directory lab checklist generator
+- [ ] Expand web app checklist generator
 
 ## v0.4 - Walkthrough learning improvements
 
