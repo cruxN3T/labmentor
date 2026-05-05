@@ -61,13 +61,30 @@ PORT   STATE SERVICE VERSION
 
         result = runner.invoke(
             app,
-            ["start", "--platform", "offsec", "--name", "MedTech", "--target", "192.168.174.120-122", "--obsidian"],
+            [
+                "start",
+                "--platform",
+                "offsec",
+                "--name",
+                "MedTech",
+                "--target",
+                "192.168.174.120-122",
+                "--obsidian",
+            ],
         )
         assert result.exit_code == 0
 
         lab_dir = vault / "OffSec" / "MedTech"
         assert lab_dir.exists()
-        for dirname in ["Scans", "Evidence", "Screenshots", "Loot", "Walkthroughs", "Walkthrough-Reviews", "Lessons"]:
+        for dirname in [
+            "Scans",
+            "Evidence",
+            "Screenshots",
+            "Loot",
+            "Walkthroughs",
+            "Walkthrough-Reviews",
+            "Lessons",
+        ]:
             assert (lab_dir / dirname).exists()
 
         note_path = lab_dir / "MedTech.md"
@@ -75,7 +92,11 @@ PORT   STATE SERVICE VERSION
 
         result = runner.invoke(app, ["import-nmap", str(nmap_file)])
         assert result.exit_code == 0
-        assert "Services imported" in note_path.read_text(encoding="utf-8")
+        note_text = note_path.read_text(encoding="utf-8")
+        assert "22/tcp" in note_text
+        assert "ssh" in note_text
+        assert "80/tcp" in note_text
+        assert "http" in note_text
 
         result = runner.invoke(app, ["import-scan", str(nmap_file)])
         assert result.exit_code == 0
