@@ -14,11 +14,14 @@ from labmentor.models import LabState
 from labmentor.nmap_parser import parse_nmap_file
 from labmentor.notes import build_notes, write_notes
 from labmentor.obsidian import (
+    create_engagement_workspace,
     get_vault_path,
     set_vault_path,
     vault_comparison_path,
+    vault_evidence_dir,
     vault_lessons_path,
     vault_note_path,
+    vault_scans_dir,
     write_obsidian_file,
 )
 from labmentor.recommendations import recommend_next_steps
@@ -45,12 +48,23 @@ PLACEHOLDER_HELP = {
 def start(
     platform: Annotated[str, typer.Option(help="Training platform, such as offsec, pg, thm, htb, or local.")],
     name: Annotated[str, typer.Option(help="Lab, room, machine, or box name.")],
-    target: Annotated[str, typer.Option(help="Target IP or hostname inside the authorized lab.")],
+    target: Annotated[str, typer.Option(help="Target IP, hostname, or subnet inside the authorized lab.")],
+    obsidian: Annotated[bool, typer.Option("--obsidian", help="Create and update an Obsidian engagement folder.")] = False,
 ) -> None:
     """Create a local LabMentor workspace."""
     workspace = workspace_root()
     workspace.mkdir(parents=True, exist_ok=True)
     state = LabState(platform=platform, name=name, target=target, workspace=workspace)
+
+    if obsidian:
+        lab_dir = create_engagement_workspace(state)
+        state.notes_path = write_obsidian_file(vault_note_path(state), build_notes(state))
+        save_state(state)
+        console.print(Panel.fit(f"Started LabMentor workspace for [bold]{name}[/bold] ({target})"))
+        console.print(f"Created Obsidian engagement folder: [bold]{lab_dir}[/bold]")
+        console.print(f"Wrote notes to [bold]{state.notes_path}[/bold]")
+        return
+
     save_state(state)
     console.print(Panel.fit(f"Started LabMentor workspace for [bold]{name}[/bold] ({target})"))
 
@@ -191,6 +205,29 @@ def import_nmap(path: Annotated[Path, typer.Argument(help="Path to nmap output t
     for service in services:
         table.add_row(f"{service.port}/{service.protocol}", service.name, f"{service.product} {service.version}".strip())
     console.print(table)
+    auto_update_obsidian(state)
+
+
+@app.command("import-scan")
+def import_scan(path: Annotated[Path, typer.Argument(help="Path to a scan file to copy into the Obsidian engagement Scans folder.")]) -> None:
+    """Copy a scan artifact into the Obsidian engagement folder."""
+    state = load_state()
+    destination = vault_scans_dir(state) / path.name
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(path, destination)
+    console.print(f"Copied scan to [bold]{destination}[/bold]")
+    auto_update_obsidian(state)
+
+
+@app.command("import-evidence")
+def import_evidence(path: Annotated[Path, typer.Argument(help="Path to an evidence file to copy into the Obsidian engagement Evidence folder.")]) -> None:
+    """Copy an evidence artifact into the Obsidian engagement folder."""
+    state = load_state()
+    destination = vault_evidence_dir(state) / path.name
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(path, destination)
+    console.print(f"Copied evidence to [bold]{destination}[/bold]")
+    auto_update_obsidian(state)
 
 
 @app.command()
@@ -220,6 +257,7 @@ def notes(
     """Generate Markdown lab notes."""
     state = load_state()
     if obsidian:
+        create_engagement_workspace(state)
         notes_path = write_obsidian_file(vault_note_path(state), build_notes(state))
     else:
         notes_path = write_notes(state, output)
@@ -240,6 +278,7 @@ def add_lead(
     state.leads.append({"title": title, "evidence": evidence, "next_step": next_step, "status": status})
     save_state(state)
     console.print(f"Added lead: [bold]{title}[/bold]")
+    auto_update_obsidian(state)
 
 
 @app.command("import-walkthrough")
@@ -251,6 +290,7 @@ def import_walkthrough_command(path: Annotated[Path, typer.Argument(help="Path t
     state.walkthrough_path = destination
     save_state(state)
     console.print(f"Imported walkthrough to [bold]{destination}[/bold]")
+    auto_update_obsidian(state)
 
 
 @app.command()
@@ -279,6 +319,20 @@ def lessons(
     if not obsidian:
         output_path.write_text(lesson_text, encoding="utf-8")
     console.print(f"Wrote lessons learned to [bold]{output_path}[/bold]")
+
+
+def auto_update_obsidian(state: LabState) -> None:
+    if state.notes_path and is_inside_vault(state.notes_path):
+        create_engagement_workspace(state)
+        write_obsidian_file(vault_note_path(state), build_notes(state))
+
+
+def is_inside_vault(path: Path) -> bool:
+    try:
+        path.resolve().relative_to(get_vault_path().resolve())
+        return True
+    except (FileNotFoundError, ValueError):
+        return False
 
 
 def detect_placeholder_notes(commands: list[str]) -> list[str]:
