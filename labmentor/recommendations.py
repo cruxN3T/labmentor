@@ -8,6 +8,31 @@ def recommend_next_steps(services: list[Service], target: str) -> list[dict[str,
     names = {service.name.lower() for service in services}
     ports = {service.port for service in services}
 
+    if has_ad_services(names, ports):
+        recommendations.append(
+            {
+                "title": "Enumerate likely Windows or Active Directory services",
+                "why": "Kerberos, LDAP, SMB, and WinRM together often indicate a Windows or Active Directory lab path. Focus on domain discovery, user enumeration, shares, and credential reuse.",
+                "commands": [
+                    f"nmap -sC -sV -p88,135,139,389,445,464,593,636,3268,3269,5985,5986 {target}",
+                    f"enum4linux-ng {target}",
+                    f"crackmapexec smb {target}",
+                    f"ldapsearch -x -H ldap://{target} -s base namingcontexts",
+                    f"kerbrute userenum --dc {target} -d LAB.LOCAL users.txt  # replace LAB.LOCAL and users.txt",
+                    f"evil-winrm -i {target} -u USER -p PASS  # replace USER and PASS after creds are found",
+                ],
+                "look_for": [
+                    "domain name and naming contexts",
+                    "anonymous LDAP or SMB information",
+                    "valid usernames",
+                    "readable SMB shares",
+                    "password policy and lockout risk",
+                    "credentials that can be reused over SMB or WinRM",
+                    "Kerberos user enumeration or AS-REP roasting opportunities where allowed",
+                ],
+            }
+        )
+
     if has_smb(names, ports):
         recommendations.append(
             {
@@ -37,7 +62,7 @@ def recommend_next_steps(services: list[Service], target: str) -> list[dict[str,
                 "commands": [
                     f"showmount -e {target}",
                     f"nmap --script nfs-showmount,nfs-ls,nfs-statfs -p111,2049 {target}",
-                    f"mkdir -p mnt/nfs && sudo mount -t nfs {target}:/<export> mnt/nfs -o nolock",
+                    f"mkdir -p mnt/nfs && sudo mount -t nfs {target}:/<export> mnt/nfs -o nolock  # replace <export>",
                 ],
                 "look_for": [
                     "world-readable exports",
@@ -120,7 +145,7 @@ def recommend_next_steps(services: list[Service], target: str) -> list[dict[str,
             {
                 "title": "Save SSH for credential reuse",
                 "why": "SSH is usually useful after you discover valid usernames or passwords elsewhere.",
-                "commands": [f"ssh <user>@{target}"],
+                "commands": [f"ssh <user>@{target}  # replace <user> after creds are found"],
                 "look_for": [
                     "credentials found from SMB, FTP, web files, or source code",
                     "username patterns",
@@ -136,7 +161,7 @@ def recommend_next_steps(services: list[Service], target: str) -> list[dict[str,
                 "why": "No common high-signal service path was identified yet. Re-check full-port scans and service versions.",
                 "commands": [
                     f"nmap -p- --min-rate 5000 {target}",
-                    f"nmap -sC -sV -p <ports> {target}",
+                    f"nmap -sC -sV -p <ports> {target}  # replace <ports>",
                 ],
                 "look_for": [
                     "missed ports",
@@ -148,6 +173,12 @@ def recommend_next_steps(services: list[Service], target: str) -> list[dict[str,
         )
 
     return recommendations
+
+
+def has_ad_services(names: set[str], ports: set[int]) -> bool:
+    ad_names = {"kerberos", "kerberos-sec", "ldap", "ldaps", "microsoft-ds", "ms-wbt-server", "wsman"}
+    ad_ports = {88, 389, 445, 464, 593, 636, 3268, 3269, 5985, 5986}
+    return bool(ad_names & names) or len(ad_ports & ports) >= 2 or bool({5985, 5986} & ports)
 
 
 def has_smb(names: set[str], ports: set[int]) -> bool:
