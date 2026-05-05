@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from labmentor.checklists import get_checklist, valid_checklists
 from labmentor.models import LabState
 from labmentor.nmap_parser import parse_nmap_file
 from labmentor.notes import write_notes
@@ -118,6 +119,33 @@ def services() -> None:
             service.name,
             f"{service.product} {service.version}".strip(),
         )
+    console.print(table)
+
+
+@app.command()
+def checklist(
+    type: Annotated[
+        str,
+        typer.Option(
+            "--type",
+            "-t",
+            help="Checklist type. Valid values: web, linux-privesc, windows-privesc, ad.",
+        ),
+    ] = "web",
+) -> None:
+    """Show a methodology checklist."""
+    try:
+        items = get_checklist(type)
+    except KeyError as error:
+        console.print(str(error).strip('"'))
+        console.print(f"Valid checklists: {', '.join(valid_checklists())}")
+        raise typer.Exit(code=1) from error
+
+    table = Table(title=f"{type} Checklist")
+    table.add_column("#", justify="right")
+    table.add_column("Step")
+    for index, item in enumerate(items, start=1):
+        table.add_row(str(index), item)
     console.print(table)
 
 
