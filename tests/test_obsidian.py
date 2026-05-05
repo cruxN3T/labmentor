@@ -1,4 +1,4 @@
-from pathlib import Path
+import json
 
 from typer.testing import CliRunner
 
@@ -17,9 +17,15 @@ def test_vault_set_show_and_notes_obsidian(tmp_path, monkeypatch):
         assert result.exit_code == 0
         assert vault.exists()
 
+        config_file = config_home / "config.json"
+        assert config_file.exists()
+        config = json.loads(config_file.read_text(encoding="utf-8"))
+        assert config["vault_path"] == str(vault.resolve())
+
         result = runner.invoke(app, ["vault", "show"])
         assert result.exit_code == 0
-        assert str(vault) in result.output
+        assert "Vault path" in result.output
+        assert "exists" in result.output
 
         result = runner.invoke(
             app,
