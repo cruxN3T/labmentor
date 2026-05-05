@@ -22,6 +22,16 @@ PLATFORM_NAMES = {
     "local": "Local",
 }
 
+ENGAGEMENT_DIRS = [
+    "Scans",
+    "Evidence",
+    "Screenshots",
+    "Loot",
+    "Walkthroughs",
+    "Walkthrough-Reviews",
+    "Lessons",
+]
+
 
 def config_dir() -> Path:
     override = os.environ.get(CONFIG_ENV)
@@ -64,16 +74,36 @@ def get_vault_path() -> Path:
     return Path(vault_path).expanduser()
 
 
+def create_engagement_workspace(state: LabState) -> Path:
+    lab_dir = vault_lab_dir(state)
+    lab_dir.mkdir(parents=True, exist_ok=True)
+    for directory in ENGAGEMENT_DIRS:
+        (lab_dir / directory).mkdir(parents=True, exist_ok=True)
+    return lab_dir
+
+
+def vault_lab_dir(state: LabState) -> Path:
+    return get_vault_path() / platform_dir(state.platform) / slugify(state.name)
+
+
 def vault_note_path(state: LabState) -> Path:
-    return get_vault_path() / platform_dir(state.platform) / f"{slugify(state.name)}.md"
+    return vault_lab_dir(state) / f"{slugify(state.name)}.md"
+
+
+def vault_scans_dir(state: LabState) -> Path:
+    return vault_lab_dir(state) / "Scans"
+
+
+def vault_evidence_dir(state: LabState) -> Path:
+    return vault_lab_dir(state) / "Evidence"
 
 
 def vault_comparison_path(state: LabState) -> Path:
-    return get_vault_path() / platform_dir(state.platform) / "Walkthrough-Reviews" / f"{slugify(state.name)}-comparison.md"
+    return vault_lab_dir(state) / "Walkthrough-Reviews" / f"{slugify(state.name)}-comparison.md"
 
 
 def vault_lessons_path(state: LabState) -> Path:
-    return get_vault_path() / platform_dir(state.platform) / "Lessons" / f"{slugify(state.name)}-lessons.md"
+    return vault_lab_dir(state) / "Lessons" / f"{slugify(state.name)}-lessons.md"
 
 
 def write_obsidian_file(path: Path, content: str) -> Path:
