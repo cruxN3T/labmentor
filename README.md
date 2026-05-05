@@ -56,10 +56,18 @@ Create a new lab workspace:
 labmentor start --platform htb --name example-box --target 10.10.10.10
 ```
 
+Check workspace status:
+
+```bash
+labmentor status
+labmentor workspace
+```
+
 Import `nmap` output:
 
 ```bash
 labmentor import-nmap scans/nmap.txt
+labmentor services
 ```
 
 Get recommended next steps:
@@ -71,7 +79,13 @@ labmentor next
 Generate or update notes:
 
 ```bash
-labmentor notes
+labmentor notes --output notes.md
+```
+
+Add a lead:
+
+```bash
+labmentor add-lead "Anonymous SMB access" --evidence "smbclient -L worked with -N" --next-step "List and download readable shares"
 ```
 
 Import a walkthrough after you get stuck:
@@ -80,6 +94,12 @@ Import a walkthrough after you get stuck:
 labmentor import-walkthrough walkthrough.md
 labmentor compare
 labmentor lessons
+```
+
+Reset the local workspace for the current directory:
+
+```bash
+labmentor reset --yes
 ```
 
 ## Example next-step output
