@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from typer.testing import CliRunner
 
 from labmentor.cli import app
@@ -35,3 +37,22 @@ PORT   STATE SERVICE VERSION
         assert result.exit_code == 0
         assert "22/tcp" in result.output
         assert "80/tcp" in result.output
+
+
+def test_reset_requires_confirmation_and_deletes_workspace(tmp_path):
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(
+            app,
+            ["start", "--platform", "htb", "--name", "sample", "--target", "10.10.10.10"],
+        )
+        assert result.exit_code == 0
+        assert Path(".labmentor").exists()
+
+        result = runner.invoke(app, ["reset"])
+        assert result.exit_code == 1
+        assert Path(".labmentor").exists()
+        assert "reset --yes" in result.output
+
+        result = runner.invoke(app, ["reset", "--yes"])
+        assert result.exit_code == 0
+        assert not Path(".labmentor").exists()
