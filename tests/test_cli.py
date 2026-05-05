@@ -39,6 +39,19 @@ PORT   STATE SERVICE VERSION
         assert "80/tcp" in result.output
 
 
+def test_checklist_command_outputs_requested_checklist():
+    result = runner.invoke(app, ["checklist", "--type", "ad"])
+    assert result.exit_code == 0
+    assert "ad Checklist" in result.output
+    assert "Identify domain name" in result.output
+
+
+def test_checklist_command_rejects_unknown_type():
+    result = runner.invoke(app, ["checklist", "--type", "unknown"])
+    assert result.exit_code == 1
+    assert "Valid checklists" in result.output
+
+
 def test_next_warns_about_placeholders(tmp_path):
     nmap_file = tmp_path / "ad-nmap.txt"
     nmap_file.write_text(
