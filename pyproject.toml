@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "labmentor"
+version = "0.1.0"
+description = "A pentest lab mentor for methodology, notes, and walkthrough analysis."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Juan Ford" }
+]
+keywords = ["pentest", "training", "labs", "notes", "offsec", "hackthebox", "tryhackme"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Education",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Education",
+  "Topic :: Security"
+]
+dependencies = [
+  "rich>=13.7.0",
+  "typer>=0.12.0",
+  "pyyaml>=6.0.1"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "ruff>=0.4.0"
+]
+
+[project.scripts]
+labmentor = "labmentor.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["labmentor*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
